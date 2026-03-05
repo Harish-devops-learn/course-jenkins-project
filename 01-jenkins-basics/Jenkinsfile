@@ -1,40 +1,60 @@
 pipeline {
+  agent any
 
-    agent any
+  tools {
+    git 'git'
+  }
 
-    tools{
-        git 'git'
+  options {
+    skipDefaultCheckout(true)   // avoid the early checkout before tools load
+    timestamps()
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+        sh 'ls -la'  // debug: see repo layout at workspace root
+      }
     }
 
-    stages {
-
-
-        stage('Setup') {
-            steps {
-                
-                sh "pip install -r requirements.txt"
-            
-            }
+    stage('Setup') {
+      steps {
+        dir('01-jenkins-basics') {
+          sh '''
+            set -euxo pipefail
+            python3 --version
+            # Recommended: use python -m pip to avoid PATH issues
+            python3 -m pip install --upgrade pip
+            python3 -m pip install -r requirements.txt
+          '''
         }
-
-        stage('Test') {
-            steps {
-                sh "pytest"
-                
-            }
-        }
-            
-        stage('Deployment') {
-            input {
-                message "Do you want to proceed further?"
-                ok "Yes"
-            }
-            steps {
-                echo "Running Deployment"
-                
-            }
-        } 
-        
-            
+      }
     }
+
+    stage('Test') {
+      steps {
+        dir('01-jenkins-basics') {
+          sh '''
+            set -euxo pipefail
+            # If pytest is in requirements.txt, python3 -m pytest is safest:
+            python3 -m pytest -q
+          '''
+        }
+      }
+    }
+
+    stage('Deployment') {
+      input {
+        message "Do you want to proceed further?"
+        ok "Yes"
+      }
+      steps {
+        dir('01-jenkins-basics') {
+          echo "Running Deployment"
+          sh 'echo "Deploy placeholder complete."'
+        }
+      }
+    }
+  }
 }
